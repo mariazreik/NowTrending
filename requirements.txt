@@ -1,0 +1,12 @@
+requests==2.31.0       # For making API requests to Twitter & Google
+psycopg2-binary==2.9.9 # PostgreSQL database connection
+python-dotenv==1.0.0   # Load environment variables from .env
+
+# Streamlit (for the dashboard)
+streamlit==1.29.0
+
+# Docker-related tools (optional)
+gunicorn==21.2.0       # WSGI server for deployment
+
+# To run the tests
+pytest==7.4.0

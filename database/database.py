@@ -1,0 +1,60 @@
+import psycopg2
+import sys
+import os
+import logging
+
+# Add the parent directory to Python's module search path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from config import DB_HOST, DB_NAME, DB_USER, DB_PASS, DB_PORT
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+
+def get_db_connection():
+    """Establishes a database connection and returns the connection object."""
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASS,
+            port=DB_PORT
+        )
+        logging.info("✅ Database connection established successfully.")
+        return conn
+    except psycopg2.DatabaseError as e:
+        logging.error(f"❌ Database connection error: {e}")
+        return None
+
+
+def execute_schema():
+    """Reads and executes the schema.sql file to set up database tables."""
+    conn = get_db_connection()
+    if conn is None:
+        logging.error("Failed to connect to the database.")
+        return False
+
+    schema_path = "database/schema.sql"
+    if not os.path.exists(schema_path):
+        logging.error(f"Schema file not found: {schema_path}")
+        return False
+
+    try:
+        with conn, conn.cursor() as cur:  # Ensures connection closes automatically
+            with open(schema_path, "r") as file:
+                sql_script = file.read()
+                cur.execute(sql_script)
+            logging.info("✅ Database schema executed successfully.")
+            return True
+    except psycopg2.DatabaseError as e:
+        logging.error(f"❌ Error executing schema: {e}")
+        return False
+
+
+if __name__ == "__main__":
+    if execute_schema():
+        logging.info("Schema setup completed successfully.")
+    else:
+        logging.error("Schema setup failed.")

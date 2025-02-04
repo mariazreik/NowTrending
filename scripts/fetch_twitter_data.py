@@ -3,14 +3,14 @@ import sys
 import json
 import os
 
-# Add your API key and host to the config file or directly replace them here
+# Extend sys path to access the database module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from config import TWITTER_API_KEY, TWITTER_API_HOST  # Ensure these are correctly set
+from config import TWITTER_API_KEY, TWITTER_API_HOST 
 
 # API URLs for Twitter Data
 HASHTAGS_API_URL = "https://twitter135.p.rapidapi.com/v1.1/Hashflags/"
 TRENDS_API_URL = "https://twitter135.p.rapidapi.com/v1.1/Trends/"
-LOCATION_API_URL = "https://twitter135.p.rapidapi.com/v1.1/Locations/"  # Locations API URL
+LOCATION_API_URL = "https://twitter135.p.rapidapi.com/v1.1/Locations/"
 
 # Request Headers with API credentials
 HEADERS = {

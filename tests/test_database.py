@@ -1,3 +1,4 @@
+# python -m unittest tests/test_update_database.py
 import unittest
 from unittest.mock import patch, MagicMock
 import logging
@@ -34,26 +35,30 @@ class TestDatabaseFunctions(unittest.TestCase):
 
         logging.info("Test passed for failed DB connection.")
 
-    @patch('psycopg2.connect')
-    @patch('os.path.exists')
-    @patch('builtins.open')
-    def test_execute_schema_success(self, mock_open, mock_exists, mock_connect):
-        """Test successful schema execution."""
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_connect.return_value = mock_conn
-        mock_exists.return_value = True
-        mock_open.return_value.__enter__.return_value.read.return_value = "CREATE TABLE test (id INT);"
-        mock_conn.cursor.return_value = mock_cursor
+@patch('psycopg2.connect')
+@patch('os.path.exists')
+@patch('builtins.open')
+def test_execute_schema_success(self, mock_open, mock_exists, mock_connect):
+    """Test successful schema execution."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
 
-        result = execute_schema()
+    # Correctly return mock objects
+    mock_connect.return_value = mock_conn
+    mock_conn.cursor.return_value = mock_cursor  # Ensure cursor is correctly mocked
+    mock_exists.return_value = True
+    mock_open.return_value.__enter__.return_value.read.return_value = "CREATE TABLE test (id INT);"
 
-        self.assertTrue(result)
-        mock_connect.assert_called_once()
-        mock_cursor.execute.assert_called_once_with("CREATE TABLE test (id INT);")
-        mock_conn.commit.assert_called_once()
+    result = execute_schema()
 
-        logging.info("Test passed for successful schema execution.")
+    self.assertTrue(result)
+    mock_connect.assert_called_once()
+    mock_cursor.execute.assert_called_once_with("CREATE TABLE test (id INT);")  # Should work now
+    mock_conn.commit.assert_called_once()
+
+    logging.info("Test passed for successful schema execution.")
+
+    print(mock_cursor.mock_calls)  # Debugging: See what calls were made
 
     @patch('psycopg2.connect')
     @patch('os.path.exists')

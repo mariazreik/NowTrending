@@ -8,9 +8,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from config import DB_HOST, DB_NAME, DB_USER, DB_PASS, DB_PORT
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# Configure logging to only show ERROR or CRITICAL messages
+logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
 
+# Optionally, you can set specific loggers to CRITICAL, to prevent messages from specific modules
+logging.getLogger("psycopg2").setLevel(logging.ERROR)  # This suppresses logs from psycopg2
 
 def get_db_connection():
     """Establishes a database connection and returns the connection object."""
@@ -22,7 +24,7 @@ def get_db_connection():
             password=DB_PASS,
             port=DB_PORT
         )
-        logging.info("✅ Database connection established successfully.")
+        logging.info("✅ Database connection established successfully.")  # This line won't show now
         return conn
     except psycopg2.DatabaseError as e:
         logging.error(f"❌ Database connection error: {e}")
@@ -46,7 +48,7 @@ def execute_schema():
             with open(schema_path, "r") as file:
                 sql_script = file.read()
                 cur.execute(sql_script)
-            logging.info("✅ Database schema executed successfully.")
+            logging.info("✅ Database schema executed successfully.")  # This line won't show now
             return True
     except psycopg2.DatabaseError as e:
         logging.error(f"❌ Error executing schema: {e}")
@@ -55,6 +57,6 @@ def execute_schema():
 
 if __name__ == "__main__":
     if execute_schema():
-        logging.info("Schema setup completed successfully.")
+        logging.info("Schema setup completed successfully.")  # This line won't show now
     else:
         logging.error("Schema setup failed.")

@@ -1,16 +1,72 @@
 import sys
 import os
 import logging
+import json
+import requests
 from contextlib import closing
+from datetime import datetime
 
 # Extend sys path to access the database module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from database.database import get_db_connection
-from scripts.fetch_twitter_data import fetch_twitter_hashtags, fetch_twitter_trends
+from scripts.fetch_twitter_data import fetch_twitter_hashtags, fetch_twitter_trends, fetch_twitter_locations
+from scripts.fetch_google_data import fetch_google_trends
 
-# Set up basic logging configuration
-logging.basicConfig(level=logging.INFO)
+# Set up basic logging configuration to suppress all logs except critical errors
+logging.basicConfig(level=logging.CRITICAL)  # Only shows critical errors
+
+GOOGLE_API_URL = "https://google-realtime-trends-data-api.p.rapidapi.com/trends"
+
+
+def update_google_trends_database(google_data):
+    """Update the Google trends data in the database, storing keywords separately."""
+    if not google_data:
+        logging.warning("No Google Trends data to update.")
+        return
+
+    try:
+        records = google_data.get("data", []) if isinstance(google_data, dict) else google_data
+
+        with get_db_connection() as conn:
+            with closing(conn.cursor()) as cursor:
+                # Query to insert into google_locations table
+                trend_query = """
+                    INSERT INTO student.google_locations (success, message, country, lastUpdate, scrapedAt)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id;
+                """
+                
+                # Query to insert keywords into google_trend table
+                keyword_query = """
+                    INSERT INTO student.google_trend (google_location_id, keyword)
+                    VALUES (%s, %s);
+                """
+
+                for record in records:
+                    success = True
+                    message = "OK"
+                    country = record.get("country")
+                    keywords = record.get("keywordsText", [])  # List of keywords
+                    
+                    lastUpdate_str = record.get("lastUpdate", "")
+                    scrapedAt_str = record.get("scrapedAt", "")
+
+                    lastUpdate_dt = datetime.strptime(lastUpdate_str, "%d-%m-%Y , %H:%M:%S") if lastUpdate_str else None
+                    scrapedAt_dt = datetime.fromisoformat(scrapedAt_str.replace("Z", "+00:00")) if scrapedAt_str else None
+
+                    # Insert main trend entry and get its ID
+                    cursor.execute(trend_query, (success, message, country, lastUpdate_dt, scrapedAt_dt))
+                    trend_id = cursor.fetchone()[0]
+
+                    # Insert each keyword separately
+                    for keyword in keywords:
+                        cursor.execute(keyword_query, (trend_id, keyword))
+
+                conn.commit()
+
+    except Exception as e:
+        logging.error(f"Error updating Google Trends database: {e}")
 
 
 def update_hashflags_database():
@@ -51,19 +107,63 @@ def update_hashflags_database():
         logging.error(f"Error updating hashflags database: {e}")
 
 
-def update_trends_database(trends):
-    """Update the trends data in the database."""
+def update_twitter_locations(locations):
+    """Insert only country-level locations into the database, ignoring invalid ones."""
+    if not locations:
+        logging.warning("No locations data to update.")
+        return
+
     try:
         with get_db_connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute("SELECT trend_name FROM student.twitter_trends;")
+                query = """
+                INSERT INTO student.twitter_locations (location_id, country_name)
+                VALUES (%s, %s)
+                ON CONFLICT (location_id) DO NOTHING;
+                """
+
+                location_data = []
+
+                for loc in locations:
+                    location_id = loc.get("place_id")
+                    country_name = loc.get("name")
+                    location_type = loc.get("location_type")
+
+                    # Only insert if the location is a country
+                    if location_id and country_name and location_type == "Country":
+                        logging.info(f"Inserting country location: {location_id}, {country_name}")
+                        location_data.append((location_id, country_name))
+                    else:
+                        # This specific error is handled silently.
+                        if location_type != "Country":
+                            logging.debug(f"Skipping invalid location data: {loc}")
+                            continue
+
+                if location_data:
+                    logging.info(f"Inserting {len(location_data)} valid country locations into the database")
+                    cursor.executemany(query, location_data)
+                    conn.commit()
+
+                else:
+                    logging.warning("No valid country locations to insert")
+                    
+    except Exception as e:
+        logging.error(f"Error updating Twitter locations database: {e}")
+
+
+def update_trends_database(trends, location_id):
+    """Update the Twitter trends data in the database, now with location_id."""
+    try:
+        with get_db_connection() as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("SELECT trend_name FROM student.twitter_trend WHERE location_id = %s;", (location_id,))
                 existing_trends = {row[0] for row in cursor.fetchall()}
 
                 query = """
-                    INSERT INTO student.twitter_trends (trend_name, position, meta_description, domain_context, url, impression_id, related_terms)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (trend_name) DO NOTHING;
-                """
+                INSERT INTO student.twitter_trend (trend_name, position, meta_description, domain_context, url, impression_id, related_terms, location_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (trend_name, location_id) DO NOTHING;
+                """  # Avoid duplicate trends per location
 
                 new_trends = []
 
@@ -80,7 +180,7 @@ def update_trends_database(trends):
                     related_terms = trend.get("relatedTerms", [])
                     related_terms = "{" + ",".join(f'"{term}"' for term in related_terms) + "}" if related_terms else "{}"
 
-                    new_trends.append((trend_name, position, meta_description, domain_context, url, impression_id, related_terms))
+                    new_trends.append((trend_name, position, meta_description, domain_context, url, impression_id, related_terms, location_id))
 
                 if new_trends:
                     cursor.executemany(query, new_trends)
@@ -128,21 +228,34 @@ def parse_trends_data(trends_data):
 
 
 def main():
-    """Main function to update hashflags and trends data."""
-    update_hashflags_database()
+    """Main function to update locations, Twitter trends, and Google trends data."""
     
-    location_id = -7608764736147602991  # Location ID for the Twitter trends
-    trends_data = fetch_twitter_trends(location_id)
+    # Fetch and update Twitter locations
+    locations = fetch_twitter_locations()
+    if locations:
+        update_twitter_locations(locations)
+    else:
+        logging.error("Failed to fetch Twitter locations.")
 
-    if not isinstance(trends_data, dict):
-        logging.error("Invalid data format received from Twitter API.")
-        return
-
-    parsed_trends = parse_trends_data(trends_data)
-
-    if parsed_trends:
-        update_trends_database(parsed_trends)
-
+    # Fetch and update Twitter trends per location
+    if locations:
+        for location in locations:
+            location_id = location.get("place_id")
+            if not location_id:
+                continue
+            
+            trends_data = fetch_twitter_trends(location_id)
+            if isinstance(trends_data, dict):
+                parsed_trends = parse_trends_data(trends_data)
+                if parsed_trends:
+                    update_trends_database(parsed_trends, location_id)
+    
+    # Fetch and update Google trends
+    google_data = fetch_google_trends()
+    if google_data:
+        update_google_trends_database(google_data)
+    else:
+        logging.error("Failed to fetch or update Google Trends data.")
 
 if __name__ == "__main__":
     main()

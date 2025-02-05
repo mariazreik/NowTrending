@@ -1,8 +1,6 @@
 import sys
 import os
 import logging
-import json
-import requests
 from contextlib import closing
 from datetime import datetime
 
@@ -20,12 +18,15 @@ GOOGLE_API_URL = "https://google-realtime-trends-data-api.p.rapidapi.com/trends"
 
 
 def update_google_trends_database(google_data):
-    """Update the Google trends data in the database, storing keywords separately."""
+    """Update the Google trends data in the database, storing keywords separately.
+       Only insert a new google_locations record if the country is not already present.
+    """
     if not google_data:
         logging.warning("No Google Trends data to update.")
         return
 
     try:
+        # Handle both dict and list inputs for google_data
         records = google_data.get("data", []) if isinstance(google_data, dict) else google_data
 
         with get_db_connection() as conn:
@@ -36,7 +37,6 @@ def update_google_trends_database(google_data):
                     VALUES (%s, %s, %s, %s, %s)
                     RETURNING id;
                 """
-                
                 # Query to insert keywords into google_trend table
                 keyword_query = """
                     INSERT INTO student.google_trend (google_location_id, keyword)
@@ -44,22 +44,34 @@ def update_google_trends_database(google_data):
                 """
 
                 for record in records:
-                    success = True
-                    message = "OK"
                     country = record.get("country")
-                    keywords = record.get("keywordsText", [])  # List of keywords
-                    
-                    lastUpdate_str = record.get("lastUpdate", "")
-                    scrapedAt_str = record.get("scrapedAt", "")
+                    if not country:
+                        # Optionally, skip or handle records without a country
+                        continue
 
-                    lastUpdate_dt = datetime.strptime(lastUpdate_str, "%d-%m-%Y , %H:%M:%S") if lastUpdate_str else None
-                    scrapedAt_dt = datetime.fromisoformat(scrapedAt_str.replace("Z", "+00:00")) if scrapedAt_str else None
+                    # Check if the country already exists
+                    cursor.execute("SELECT id FROM student.google_locations WHERE country = %s", (country,))
+                    result = cursor.fetchone()
 
-                    # Insert main trend entry and get its ID
-                    cursor.execute(trend_query, (success, message, country, lastUpdate_dt, scrapedAt_dt))
-                    trend_id = cursor.fetchone()[0]
+                    if result:
+                        # Use the existing id if the country is already in the database
+                        trend_id = result[0]
+                    else:
+                        # Prepare values for insertion
+                        success = True
+                        message = "OK"
+                        lastUpdate_str = record.get("lastUpdate", "")
+                        scrapedAt_str = record.get("scrapedAt", "")
 
-                    # Insert each keyword separately
+                        lastUpdate_dt = datetime.strptime(lastUpdate_str, "%d-%m-%Y , %H:%M:%S") if lastUpdate_str else None
+                        scrapedAt_dt = datetime.fromisoformat(scrapedAt_str.replace("Z", "+00:00")) if scrapedAt_str else None
+
+                        # Insert a new row and retrieve the new id
+                        cursor.execute(trend_query, (success, message, country, lastUpdate_dt, scrapedAt_dt))
+                        trend_id = cursor.fetchone()[0]
+
+                    # Insert each keyword associated with this google_location_id
+                    keywords = record.get("keywordsText", [])  # Expecting a list of keywords
                     for keyword in keywords:
                         cursor.execute(keyword_query, (trend_id, keyword))
 
@@ -67,7 +79,6 @@ def update_google_trends_database(google_data):
 
     except Exception as e:
         logging.error(f"Error updating Google Trends database: {e}")
-
 
 def update_hashflags_database():
     """Fetch and update hashflags data in the database."""
@@ -241,14 +252,22 @@ def main():
     if locations:
         for location in locations:
             location_id = location.get("place_id")
-            if not location_id:
-                continue
-            
+            location_type = location.get("location_type")  # Ensure it's a country
+
+            if not location_id or location_type != "Country":
+                logging.warning(f"Skipping invalid location: {location}")  # Debugging message
+                continue  # Skip invalid locations
+
             trends_data = fetch_twitter_trends(location_id)
-            if isinstance(trends_data, dict):
-                parsed_trends = parse_trends_data(trends_data)
-                if parsed_trends:
-                    update_trends_database(parsed_trends, location_id)
+    
+            if isinstance(trends_data, dict) and "status" in trends_data and trends_data["status"] is False:
+                logging.error(f"Error fetching trends for {location.get('name')}: {trends_data.get('message')}")
+                continue  # Skip locations that result in API errors
+
+            parsed_trends = parse_trends_data(trends_data)
+    
+            if parsed_trends:
+                update_trends_database(parsed_trends, location_id)
     
     # Fetch and update Google trends
     google_data = fetch_google_trends()

@@ -10,3 +10,6 @@ gunicorn==21.2.0       # WSGI server for deployment
 
 # To run the tests
 pytest==7.4.0
+
+pandas
+sqlalchemy

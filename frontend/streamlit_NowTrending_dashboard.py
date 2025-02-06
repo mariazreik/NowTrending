@@ -63,7 +63,7 @@ st.markdown(
     <style>
     /* Adjusting the main content area */
     .main .block-container {
-        max-width: 75%; /* Reduce the width to create a shift */
+        max-width: 70%; /* Reduce the width to create a shift */
         margin-left: -15%;
         margin-right: 15%; /* Shift towards the sidebar */
     }
@@ -172,10 +172,10 @@ if platform == "Twitter":
     # Remove the numeric column since it is not needed for display
     df_top_ten = df_top_ten.drop(columns=['Popularity_numeric'])
     
-    # Create clickable links in the 'Trend' column by wrapping the text with an HTML <a> tag
     df_top_ten['Trend_Link'] = df_top_ten['Trend'].apply(
-        lambda trend: f"[{trend}](https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query)"
-        )
+        lambda trend: f'<a href="https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query" target="_blank">{trend}</a>'
+    )
+
     
     # Enhanced CSS for a more aesthetic, blue-themed table
     st.markdown(

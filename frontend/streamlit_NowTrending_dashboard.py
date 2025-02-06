@@ -64,7 +64,7 @@ st.markdown(
     .main .block-container {
         max-width: 70%; /* Reduce the width to create a shift */
         margin-left: -10%;
-        margin-right: 15%; /* Shift towards the sidebar */
+        margin-right: 20%; /* Shift towards the sidebar */
     }
     </style>
     """,

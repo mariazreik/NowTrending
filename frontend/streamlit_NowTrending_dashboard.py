@@ -135,7 +135,7 @@ if platform == "Twitter":
 
     # Generate Twitter search links
     latest_trends['Trend'] = latest_trends['Trend'].apply(
-        lambda trend: f'<a href="https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query" target="_blank">{trend}</a>'
+        lambda trend: f'<a href="https://twitter.com/search?q={urllib.parse.quote_plus(trend)}" target="_blank">{trend}</a>'
     )
 
     st.markdown(latest_trends[['Trend', 'Category']].to_html(escape=False, index=False), unsafe_allow_html=True)

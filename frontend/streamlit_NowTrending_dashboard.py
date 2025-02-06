@@ -6,9 +6,6 @@ import base64
 import subprocess
 import urllib.parse
 
-# Set the page configuration to wide mode
-st.set_page_config(layout="wide")
-
 # Add the parent directory of 'frontend' to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from frontend.explorations import twitter_data, top5_per_context, google_loc
@@ -74,7 +71,10 @@ st.markdown(
 set_background("lightmode.jpg")
 
 # Sidebar selection
-platform = st.sidebar.selectbox("Platforms:", ("Twitter", "Google"))
+platform = st.sidebar.selectbox(
+    "Platforms:",
+    ("Twitter", "Google")
+)
 
 # Set sidebar images
 if platform == "Twitter":
@@ -93,7 +93,7 @@ def parse_popularity(pop_str):
         return float(pop_str) if pop_str.isnumeric() else 0
 
 if platform == "Twitter":
-    st.subheader("🔥 The Hottest Twitter Trends")
+    st.subheader("The Hottest Twitter Trends")
     with st.expander("Description"):
         st.write("Displays the Top 10 trends on Twitter. Filter by Country or Category!")
 
@@ -116,14 +116,14 @@ if platform == "Twitter":
     df_top_ten['Popularity_numeric'] = df_top_ten['Popularity'].apply(parse_popularity)
     df_top_ten = df_top_ten.sort_values(by='Popularity_numeric', ascending=False).drop(columns=['Popularity_numeric'])
 
-    # Generate correct Twitter search links
-    df_top_ten['Trend'] = df_top_ten['Trend'].apply(
-        lambda trend: f'<a href="https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query" target="_blank">{trend}</a>'
+    # Generate Twitter search links dynamically
+    df_top_ten['Trend_Link'] = df_top_ten['Trend'].apply(
+        lambda trend: f"[{trend}](https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query)"
     )
 
-    st.markdown(df_top_ten.to_html(escape=False, index=False), unsafe_allow_html=True)
+    st.table(df_top_ten[['Trend_Link', 'Popularity']].rename(columns={'Trend_Link': 'Trend'}))
 
-    st.subheader("🆕 The Latest Twitter Trends")
+    st.subheader("The Latest Twitter Trends")
     with st.expander("Description"):
         st.write("Displays the Latest 5 trends on Twitter.")
 
@@ -136,15 +136,15 @@ if platform == "Twitter":
     else:
         latest_trends = df_sorted[df_sorted['Category'] == selected_domain_for_latest].head(5)
 
-    # Generate Twitter search links
-    latest_trends['Trend'] = latest_trends['Trend'].apply(
-        lambda trend: f'<a href="https://twitter.com/search?q={urllib.parse.quote_plus(trend)}" target="_blank">{trend}</a>'
+    # Generate Twitter search links dynamically
+    latest_trends['Trend_Link'] = latest_trends['Trend'].apply(
+        lambda trend: f"[{trend}](https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query)"
     )
 
-    st.markdown(latest_trends[['Trend', 'Category']].to_html(escape=False, index=False), unsafe_allow_html=True)
+    st.table(latest_trends[['Trend_Link', 'Category']].rename(columns={'Trend_Link': 'Trend'}))
 
 elif platform == "Google":
-    st.subheader("📈 The Latest Google Trends")
+    st.subheader("The Latest Google Trends")
     with st.expander('Description'):
         st.write("Displays the Latest Google Trends and allows filtering by country.")
 
@@ -162,13 +162,13 @@ elif platform == "Google":
     df_filtered = df_filtered.sort_values('last_updated', ascending=False).head(10)
     df_filtered['Trend'] = df_filtered['Trend'].str.title()
 
-    # Generate Google search links
-    df_filtered['Trend'] = df_filtered['Trend'].apply(
-        lambda trend: f'<a href="https://www.google.com/search?q={urllib.parse.quote_plus(trend)}" target="_blank">{trend}</a>'
+    # Generate Google search links dynamically
+    df_filtered['Trend_Link'] = df_filtered['Trend'].apply(
+        lambda trend: f"[{trend}](https://www.google.com/search?q={urllib.parse.quote_plus(trend)})"
     )
 
-    st.markdown(df_filtered[['Trend']].to_html(escape=False, index=False), unsafe_allow_html=True)
+    st.table(df_filtered[['Trend_Link']].rename(columns={'Trend_Link': 'Trend'}))
 
 st.sidebar.markdown("""---""")
-if st.sidebar.button("🔄 Refresh Data"):
+if st.sidebar.button("Refresh Data"):
     refresh_data()

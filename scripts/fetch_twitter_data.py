@@ -1,16 +1,16 @@
 import requests
-import sys
+# import sys
 import json
-import os
+# import os
 import streamlit as st
 
-# Extend sys path to access the database module
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from config import TWITTER_API_KEY, TWITTER_API_HOST 
+# # Extend sys path to access the database module
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# from config import TWITTER_API_KEY, TWITTER_API_HOST 
 
 # Twitter Hashflags API
-TWITTER_API_KEY=st.secrets["TWITTER_API_KEY"]["TWITTER_API_KEY"]
-TWITTER_API_HOST=st.secrets["TWITTER_API_HOST"]["TWITTER_API_HOST"]
+TWITTER_API_KEY=st.secrets["TWITTER_API_KEY"]
+TWITTER_API_HOST=st.secrets["TWITTER_API_HOST"]
 
 
 # API URLs for Twitter Data

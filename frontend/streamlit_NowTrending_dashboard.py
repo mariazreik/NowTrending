@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 import urllib.parse 
 
+
 # Add the parent directory of 'frontend' to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from frontend.explorations import twitter_data, top5_per_context, trend_growth, google_loc

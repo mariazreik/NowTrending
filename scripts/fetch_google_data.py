@@ -1,6 +1,7 @@
 import os
 import sys
 import requests
+import streamlit as st
 
 # Extend sys path to access the database module or config in parent directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -8,6 +9,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import GOOGLE_API_HOST, GOOGLE_API_KEY
 
 GOOGLE_API_URL = "https://google-realtime-trends-data-api.p.rapidapi.com/trends"
+
+# Google Trends API
+GOOGLE_API_KEY=afst.secrets["GOOGLE_API_KEY"]["GOOGLE_API_KEY"]
+GOOGLE_API_HOST=st.secrets["GOOGLE_API_HOST"]["GOOGLE_API_HOST"]
 
 def fetch_google_trends():
     """

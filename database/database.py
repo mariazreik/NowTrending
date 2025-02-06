@@ -2,11 +2,19 @@ import psycopg2
 import sys
 import os
 import logging
+import streamlit as st
 
 # Add the parent directory to Python's module search path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from config import DB_HOST, DB_NAME, DB_USER, DB_PASS, DB_PORT
+
+# Database Credentials
+DB_HOST=st.secrets["DB_HOST"]["DB_HOST"]
+DB_NAME=st.secrets["DB_NAME"]["DB_NAME"]
+DB_USER=st.secrets["DB_USER"]["DB_USER"]
+DB_PASS=st.secrets["DB_PASS"]["DB_PASS"]
+DB_PORT=st.secrets["DB_PORT"]["DB_PORT"]
 
 # Configure logging to only show ERROR or CRITICAL messages
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")

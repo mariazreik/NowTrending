@@ -65,7 +65,9 @@ if platform == "Twitter":
     
     df_top_ten['Trend'] = df_top_ten['Trend'].apply(make_clickable_trend)
     
-    st.markdown(df_top_ten.to_html(escape=False, index=False), unsafe_allow_html=True)
+    for index, row in df_top_ten.iterrows():
+        st.markdown(f"- [{row['Trend']}](https://twitter.com/search?q={urllib.parse.quote_plus(row['Trend'])}&src=typed_query)", unsafe_allow_html=True)
+
 
     st.subheader("The Latest Twitter Trends")
     with st.expander("Description"):

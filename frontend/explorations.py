@@ -5,7 +5,7 @@ import os
 import re
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from frontend.transformation import transform_twitter_trend, transform_twitter_locations
+from frontend.transformation import transform_twitter_trend, transform_twitter_locations, transform_google_locations, transform_google_trend
 
 import re
 import numpy as np
@@ -70,9 +70,15 @@ def top5_per_context():
     df_sorted = df[['trend', 'domain_context', 'last_updated', 'url']]
     df_sorted = df_sorted.sort_values('last_updated', ascending=False)
     df_sorted = df_sorted[df_sorted['domain_context'].notna() & (df_sorted['domain_context'] != '')]
+    
     # Then, for each domain_context group, take the first 5 rows
     top5_per_context = df_sorted.groupby('domain_context').head(5).reset_index(drop=True)
+    
+    # Rename columns for clarity
     top5_per_context.rename(columns={'trend':'Trend', 'domain_context':'Category'}, inplace=True)
+    
+    # Drop duplicate trends only (if that's what you intend)
+    top5_per_context.drop_duplicates(subset=['Trend'], inplace=True)
 
     return top5_per_context
 
@@ -92,4 +98,13 @@ def trend_growth():
     # Select relevant columns
     df_sorted = df_filtered[['trend', 'meta_description', 'last_updated']]
     
+    return df_sorted
+
+def google_loc():
+    df_loc = transform_google_locations()
+    df_trend = transform_google_trend()
+    df_loc.rename(columns={'id' :'google_location_id', 'country':'Country'},inplace=True)
+    df_merged = pd.merge(df_loc, df_trend, on='google_location_id', how='inner')
+    df_merged.rename(columns={'trend' :'Trend'}, inplace=True)
+    df_sorted = df_merged[['Trend', 'Country', 'last_updated']]
     return df_sorted

@@ -6,10 +6,11 @@ import base64
 import subprocess
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
+import urllib.parse 
 
 # Add the parent directory of 'frontend' to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from frontend.explorations import twitter_data, top5_per_context, trend_growth
+from frontend.explorations import twitter_data, top5_per_context, trend_growth, google_loc
 
 def refresh_data():
     """Runs the script to update the database."""
@@ -347,8 +348,85 @@ if platform == "Twitter":
     # Show the plot
     st.pyplot(plt)
 
+
 elif platform == "Google":
-    st.write("You selected Google.")
+    st.subheader("The Latest Google Trends")
+    with st.expander('Description'):
+        st.write("""
+            This section displays the Latest Google Trends in real-time. It also gives you the option to filter the latest trends by Country.
+                 """)
+    # Retrieve the google trends data.
+    # Make sure that google_loc() is imported or defined in your code.
+    df_google = google_loc()
+
+    # Convert 'last_updated' to datetime for accurate sorting
+    df_google['last_updated'] = pd.to_datetime(df_google['last_updated'])
+
+    # Convert the 'Country' column to title case so the select box displays them nicely.
+    df_google['Country'] = df_google['Country'].str.title()
+
+    # Create a select box with all unique countries in title case.
+    country_options = sorted(df_google['Country'].unique())
+    selected_country = st.selectbox("Filter by Country:", options=["All"] + country_options)
+
+    # Filter the DataFrame based on the selected country.
+    if selected_country != "All":
+        df_filtered = df_google[df_google['Country'] == selected_country]
+    else:
+        df_filtered = df_google.copy()
+
+    # Now, sort the filtered data by last_updated descending and select the 10 most recent trends.
+    df_filtered = df_filtered.sort_values('last_updated', ascending=False).head(10)
+
+    # Optionally, format the 'Trend' column (e.g., title case)
+    df_filtered['Trend'] = df_filtered['Trend'].str.title()
+
+    # Create clickable links for each trend. The link points to a Google search query for that trend.
+    df_filtered['Trend'] = df_filtered['Trend'].apply(
+        lambda trend: f'<a href="https://www.google.com/search?q={urllib.parse.quote_plus(trend)}" target="_blank">{trend}</a>'
+    )
+
+    # Inject custom CSS for an aesthetic yellow-themed table.
+    st.markdown(
+        """
+        <style>
+        .yellow-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .yellow-table thead {
+            background-color: #FFD700;
+        }
+        .yellow-table thead th {
+            color: #000;
+            padding: 10px;
+            text-align: left;
+            font-size: 16px;
+        }
+        .yellow-table tbody td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .yellow-table tbody tr:nth-child(odd) {
+            background-color: #FFFACD;
+        }
+        .yellow-table tbody tr:nth-child(even) {
+            background-color: #FFF68F;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Convert the filtered DataFrame to an HTML table using the custom CSS class.
+    # Here we display only the 'Trend' column, but you can include other columns if needed.
+    table_html = df_filtered[['Trend']].to_html(
+        index=False, classes="yellow-table", border=0, escape=False
+    )
+    st.markdown(table_html, unsafe_allow_html=True)
 
 # Sidebar button to refresh data
 st.sidebar.markdown("""---""")  # Adds a separator line

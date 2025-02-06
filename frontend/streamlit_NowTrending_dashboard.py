@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 import urllib.parse 
 
+# Set the background image
+set_background("lightmode.jpg")
 
 # Add the parent directory of 'frontend' to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -172,10 +174,10 @@ if platform == "Twitter":
     # Remove the numeric column since it is not needed for display
     df_top_ten = df_top_ten.drop(columns=['Popularity_numeric'])
     
-    df_top_ten['Trend_Link'] = df_top_ten['Trend'].apply(
-        lambda trend: f'<a href="https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query" target="_blank">{trend}</a>'
+    # Create clickable links in the 'Trend' column by wrapping the text with an HTML <a> tag
+    df_top_ten['Trend'] = df_top_ten.apply(
+        lambda row: f'<a href="{row["URL"]}" target="_blank">{row["Trend"]}</a>', axis=1
     )
-
     
     # Enhanced CSS for a more aesthetic, blue-themed table
     st.markdown(

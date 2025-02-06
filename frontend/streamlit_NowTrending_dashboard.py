@@ -6,6 +6,9 @@ import base64
 import subprocess
 import urllib.parse
 
+# Set the page configuration to wide mode
+st.set_page_config(layout="wide")
+
 # Add the parent directory of 'frontend' to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from frontend.explorations import twitter_data, top5_per_context, google_loc

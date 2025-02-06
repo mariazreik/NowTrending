@@ -75,3 +75,21 @@ def top5_per_context():
     top5_per_context.rename(columns={'trend':'Trend', 'domain_context':'Category'}, inplace=True)
 
     return top5_per_context
+
+
+def trend_growth():
+    df = transform_twitter_trend()
+    
+    # Count occurrences of each trend
+    trend_counts = df['trend'].value_counts()
+    
+    # Filter trends that appear more than 3 times
+    valid_trends = trend_counts[trend_counts > 3].index
+    
+    # Filter the dataframe to keep only valid trends
+    df_filtered = df[df['trend'].isin(valid_trends)]
+    
+    # Select relevant columns
+    df_sorted = df_filtered[['trend', 'meta_description', 'last_updated']]
+    
+    return df_sorted

@@ -4,10 +4,12 @@ import os
 import sys
 import base64
 import subprocess
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
 # Add the parent directory of 'frontend' to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from frontend.explorations import twitter_data, top5_per_context
+from frontend.explorations import twitter_data, top5_per_context, trend_growth
 
 def refresh_data():
     """Runs the script to update the database."""
@@ -105,15 +107,17 @@ st.markdown(
 def parse_popularity(pop_str):
     """
     Convert a popularity string with 'K' or 'M' suffixes to a numeric value.
-    e.g. '1.7M' becomes 1700000, '997K' becomes 997000, and plain numbers are converted to float.
+    e.g. '1.7M posts' becomes 1700000, '997K posts' becomes 997000, and plain numbers are converted to float.
     """
-    pop_str = pop_str.strip()
-    if pop_str.endswith("M"):
+    # Clean the string by stripping any leading or trailing spaces and remove ' posts' part
+    pop_str = pop_str.strip().lower().replace(" posts", "")
+    
+    if pop_str.endswith("m"):
         try:
             return float(pop_str[:-1]) * 1_000_000
         except ValueError:
             return 0
-    elif pop_str.endswith("K"):
+    elif pop_str.endswith("k"):
         try:
             return float(pop_str[:-1]) * 1_000
         except ValueError:
@@ -123,6 +127,7 @@ def parse_popularity(pop_str):
             return float(pop_str)
         except ValueError:
             return 0
+
 
 if platform == "Twitter":
     st.subheader("The Hottest Twitter Trends")
@@ -263,7 +268,6 @@ if platform == "Twitter":
         )
     
     # Create clickable links in the 'Trend' column.
-    # This assumes that the DataFrame has an extra column named "url" containing the corresponding link.
     latest_trends['Trend'] = latest_trends.apply(
         lambda row: f'<a href="{row["url"]}" target="_blank">{row["Trend"]}</a>', axis=1
     )
@@ -275,6 +279,74 @@ if platform == "Twitter":
     )
     st.markdown(table_html_latest, unsafe_allow_html=True)
     
+    st.subheader("Trend Growth")
+    with st.expander("Description"):
+        st.write("""
+            This section displays the Growth of a Trend over time.
+        """)
+    
+    df_trends = trend_growth()
+    
+    trend_selection = st.selectbox(
+        "Select a Trend to Visualize Growth Over Time:",
+        df_trends['trend'].unique())
+
+    # Get the trend data filtered by the selected trend
+    trend_data = df_trends[df_trends['trend'] == trend_selection]
+
+    # Convert 'last_updated' to datetime (if it's not already)
+    trend_data['last_updated'] = pd.to_datetime(trend_data['last_updated'])
+
+    # Parse 'meta_description' to numeric popularity values
+    trend_data['popularity_numeric'] = trend_data['meta_description'].apply(parse_popularity)
+
+    # Convert 'last_updated' to datetime if it's not already
+    trend_data['last_updated'] = pd.to_datetime(trend_data['last_updated'])
+
+    # Sort the data by timestamp
+    trend_data = trend_data.sort_values('last_updated')
+
+    # Determine the start and end times for the trend
+    start_time = trend_data['last_updated'].min()
+    end_time = trend_data['last_updated'].max()
+
+    # Generate evenly spaced time intervals within the range of start and end times
+    # Let's decide how many points we want, for example 24 evenly spaced points
+    num_points = 24
+    even_time_intervals = pd.date_range(start=start_time, end=end_time, periods=num_points)
+
+    # Interpolate popularity data to match these even time intervals
+    # First, create a function for interpolation
+    interpolator = interp1d(
+        pd.to_numeric(trend_data['last_updated']), 
+        trend_data['popularity_numeric'], 
+        kind='linear', fill_value="extrapolate"
+    )
+
+    # Interpolated popularity values at the evenly spaced time intervals
+    interpolated_popularity = interpolator(pd.to_numeric(even_time_intervals))
+
+    # Plot the trend with evenly spaced intervals
+    plt.figure(figsize=(10, 6))
+    plt.plot(even_time_intervals, interpolated_popularity, marker='o', linestyle='-', color='b')
+
+    # Optionally highlight max and min points
+    max_popularity_idx = interpolated_popularity.argmax()
+    min_popularity_idx = interpolated_popularity.argmin()
+
+    plt.scatter([even_time_intervals[max_popularity_idx], even_time_intervals[min_popularity_idx]],
+                [interpolated_popularity[max_popularity_idx], interpolated_popularity[min_popularity_idx]],
+                color=['blue'], label='Popularity Count', zorder=5)
+
+    plt.title(f"Popularity Over Time for '{trend_selection}'")
+    plt.xlabel('Date')
+    plt.ylabel('Popularity')
+    plt.xticks(rotation=45)
+    plt.legend()
+
+    # Show the plot
+    st.pyplot(plt)
+
 elif platform == "Google":
     st.write("You selected Google.")
 

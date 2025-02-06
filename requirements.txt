@@ -18,3 +18,7 @@ sqlalchemy
 streamlit
 
 plotly
+
+matplotlib
+
+scipy

@@ -20,10 +20,67 @@ def refresh_data():
         else:
             st.error(f"Failed to refresh data: {result.stderr}")
 
-def make_clickable_trend(trend):
-    """Generate a clickable Twitter search URL for a given trend."""
-    encoded_trend = urllib.parse.quote_plus(trend)
-    return f'<a href="https://twitter.com/search?q={encoded_trend}&src=typed_query" target="_blank">{trend}</a>'
+def set_background(image_file):
+    """Sets the background image for the app."""
+    with open(image_file, "rb") as f:
+        encoded_string = base64.b64encode(f.read()).decode()
+    css = f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/png;base64,{encoded_string}");
+        background-size: cover;
+    }}
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+def set_sidebar_image(image_file):
+    """Sets the sidebar image dynamically."""
+    with open(image_file, "rb") as f:
+        encoded_string = base64.b64encode(f.read()).decode()
+    st.sidebar.markdown(
+        f"""
+        <style>
+        .sidebar-img {{
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            border-radius: 10px;
+        }}
+        </style>
+        <img class="sidebar-img" src="data:image/png;base64,{encoded_string}" />
+        """,
+        unsafe_allow_html=True
+    )
+
+st.markdown(
+    """
+    <style>
+    .main .block-container {
+        max-width: 65%;
+        margin-left: -15%;
+        margin-right: 15%;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Set the background image
+set_background("lightmode.jpg")
+
+# Sidebar selection
+platform = st.sidebar.selectbox(
+    "Platforms:",
+    ("Twitter", "Google")
+)
+
+# Set sidebar images
+if platform == "Twitter":
+    set_sidebar_image("twitter.png")
+elif platform == "Google":
+    set_sidebar_image("Google-Logo.png")
 
 def parse_popularity(pop_str):
     """Convert a popularity string (e.g., '1.7M posts') to a numeric value."""
@@ -35,11 +92,6 @@ def parse_popularity(pop_str):
     else:
         return float(pop_str) if pop_str.isnumeric() else 0
 
-st.title("Trending Topics Dashboard")
-
-# Sidebar selection
-platform = st.sidebar.selectbox("Platforms:", ("Twitter", "Google"))
-
 if platform == "Twitter":
     st.subheader("The Hottest Twitter Trends")
     with st.expander("Description"):
@@ -47,6 +99,7 @@ if platform == "Twitter":
 
     df_top_ten = twitter_data()
     df_top_ten['country'] = df_top_ten['country'].str.title()
+
     countries = sorted(df_top_ten['country'].unique().tolist())
     domain_contexts = df_top_ten['domain_context'].unique().tolist()
 
@@ -62,12 +115,13 @@ if platform == "Twitter":
     df_top_ten['Trend'] = df_top_ten['Trend'].str.title()
     df_top_ten['Popularity_numeric'] = df_top_ten['Popularity'].apply(parse_popularity)
     df_top_ten = df_top_ten.sort_values(by='Popularity_numeric', ascending=False).drop(columns=['Popularity_numeric'])
-    
-    df_top_ten['Trend'] = df_top_ten['Trend'].apply(make_clickable_trend)
-    
-    for index, row in df_top_ten.iterrows():
-        st.markdown(f"- [{row['Trend']}](https://twitter.com/search?q={urllib.parse.quote_plus(row['Trend'])}&src=typed_query)", unsafe_allow_html=True)
 
+    # Generate Twitter search links dynamically
+    df_top_ten['Trend_Link'] = df_top_ten['Trend'].apply(
+        lambda trend: f"[{trend}](https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query)"
+    )
+
+    st.table(df_top_ten[['Trend_Link', 'Popularity']].rename(columns={'Trend_Link': 'Trend'}))
 
     st.subheader("The Latest Twitter Trends")
     with st.expander("Description"):
@@ -82,9 +136,12 @@ if platform == "Twitter":
     else:
         latest_trends = df_sorted[df_sorted['Category'] == selected_domain_for_latest].head(5)
 
-    latest_trends['Trend'] = latest_trends['Trend'].apply(make_clickable_trend)
-    
-    st.markdown(latest_trends[['Trend', 'Category']].to_html(escape=False, index=False), unsafe_allow_html=True)
+    # Generate Twitter search links dynamically
+    latest_trends['Trend_Link'] = latest_trends['Trend'].apply(
+        lambda trend: f"[{trend}](https://twitter.com/search?q={urllib.parse.quote_plus(trend)}&src=typed_query)"
+    )
+
+    st.table(latest_trends[['Trend_Link', 'Category']].rename(columns={'Trend_Link': 'Trend'}))
 
 elif platform == "Google":
     st.subheader("The Latest Google Trends")
@@ -104,9 +161,13 @@ elif platform == "Google":
 
     df_filtered = df_filtered.sort_values('last_updated', ascending=False).head(10)
     df_filtered['Trend'] = df_filtered['Trend'].str.title()
-    df_filtered['Trend'] = df_filtered['Trend'].apply(lambda trend: f'<a href="https://www.google.com/search?q={urllib.parse.quote_plus(trend)}" target="_blank">{trend}</a>')
-    
-    st.markdown(df_filtered[['Trend']].to_html(escape=False, index=False), unsafe_allow_html=True)
+
+    # Generate Google search links dynamically
+    df_filtered['Trend_Link'] = df_filtered['Trend'].apply(
+        lambda trend: f"[{trend}](https://www.google.com/search?q={urllib.parse.quote_plus(trend)})"
+    )
+
+    st.table(df_filtered[['Trend_Link']].rename(columns={'Trend_Link': 'Trend'}))
 
 st.sidebar.markdown("""---""")
 if st.sidebar.button("Refresh Data"):

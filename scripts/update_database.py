@@ -204,6 +204,10 @@ def update_trends_database(trends, location_id):
 
 def parse_trends_data(trends_data):
     """Parse the trends data returned from Twitter."""
+    if not trends_data:
+        logging.error("No trends data to parse.")
+        return []  # Return an empty list or handle as appropriate.
+
     parsed_trends = []
     timeline_data = trends_data.get("timeline", {})
     instructions = timeline_data.get("instructions", [])

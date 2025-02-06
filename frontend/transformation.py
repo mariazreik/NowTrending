@@ -10,7 +10,7 @@ from database.database import get_db_connection  # Now import should work
 
 
 def transform_google_locations():
-    '''This function retrieves the google_locations table and returns the cleaned version as a pandas dataframe.'''
+    '''This function retrieves the google_locations table and returns the clean version as a pandas dataframe.'''
     conn = get_db_connection()
     if conn:
         try:
@@ -119,7 +119,7 @@ def transform_twitter_locations():
             query = "SELECT * FROM student.twitter_locations"
             # my dataframe
             df_unique = pd.read_sql(query, conn)
-            df_unique['country_name'] = df['country_name'].str.lower()
+            df_unique['country_name'] = df_unique['country_name'].str.lower()
             # original_length = len(df_unique)
             df_unique = df_unique.drop_duplicates(subset=['country_name'])
             df_unique.rename(columns={'country_name':'country'}, inplace=True)

@@ -13,3 +13,8 @@ pytest==7.4.0
 
 pandas
 sqlalchemy
+
+# To install streamlit
+streamlit
+
+plotly
